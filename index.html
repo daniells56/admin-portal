@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal do Client</title>
+    <style>
+        *{
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+        }
+        body{
+            background-color: rgb(41, 40, 40);
+        }
+        .cliente{
+            max-width: 700px;
+            margin: 20px auto;
+            width: 100%;
+            text-align: center;
+        }
+
+        .cliente h2{color: white;}
+
+
+        .cliente form{
+            padding: 10px;
+        }
+
+        .cliente textarea{
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+        }
+
+        .cliente input[type=file]{
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            padding: 8px;
+            color: white;
+        }
+
+        .cliente input[type=submit]{
+            width: 100%;
+            height: 50px;
+            display: block;
+            background-color: blueviolet;
+            color: white;
+            cursor: pointer;
+            border: 0;
+        }
+
+        .admin {
+            text-align: center;
+        }
+
+        .admin a img {
+            max-width: 360px;
+            border: 10px;
+            margin-top: 110px;
+        }
+
+        h1 {
+            color: white;
+        }
+
+        nav {
+            margin-top: 50px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            border: 0;
+            font-size: 20px;
+            padding: 10px;
+        }
+
+
+        nav a:hover {
+            color: darkviolet;
+            transition: all 0.5s;
+        }
+
+        .info {
+            opacity: 0;
+            background-color: blueviolet;
+            min-width: 390px;
+            height: 70px;
+            text-align: center;
+            color: white;
+            position: absolute;
+            right: 10px;
+            top: 20px;
+            padding: 10px;
+            transition: all 0.5s;
+        }
+
+        .info h3 {
+            white-space: nowrap;
+            margin: 0 auto;
+            margin-top: 15px;
+        }
+
+        .container-single-pedido {
+            text-align: left;
+        }
+
+        .container-single-pedido img {
+            width: 250px;
+            height: 250px;
+            margin-left: 40px;
+        }
+
+        .logout-button {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="./">Home</a>
+        <a href="/?admin">Admin Panel</a>
+        <a class="logout-button" >Deslogar</a>
+    </nav>
+
+    <div class="info">
+        <h3 class="text">texto...</h3>
+    </div>
+
+<div style="display: none;" class="cliente">
+    <h2>Deseja dar aulas na plataforma?</h2>
+    <form id="form-client">
+        <textarea name="comprovante" placeholder="Qual curso voce gostaria de dar?"></textarea>
+        <input type="file" name="arquivo">
+        <input type="submit" name="acao" value="Enviar!" id="">
+    </form>
+</div>
+
+<div style="display: none;" class="admin">
+    <a  href=""><img id="login" src="Meu projeto.png" alt=""></a>
+    <div style="display: none;" class="listar-pedidos">
+        <h1>Ultimas Solicitaçoes</h1>
+        <div class="container-pedidos">
+
+        </div><!--container-pedidos-->
+    </div><!--Listar Pedidods-->
+</div>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword} from "https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.1/firebase-auth.min.js"
+        import { getFirestore, query, where, collection, doc, setDoc, getDoc, getDocs, addDoc, onSnapshot } from "https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.1/firebase-firestore.min.js"
+        import {  getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.1/firebase-storage.min.js";
+
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+        apiKey: "AIzaSyBww3Zv6-u3Kw5X9boKw1OJuoKqRYiBjXM",
+        authDomain: "portal-cliente-13d72.firebaseapp.com",
+        projectId: "portal-cliente-13d72",
+        storageBucket: "portal-cliente-13d72.appspot.com",
+        messagingSenderId: "777930205516",
+        appId: "1:777930205516:web:9765609d486e6856fc87e9"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage();
+        const auth = getAuth();
+        const provider = new GoogleAuthProvider();
+
+
+        const formClient = document.querySelector("#form-client");
+
+        function infobox(Texto) {
+            let infobox = document.querySelector(".info")
+                    infobox.style.opacity = "1";
+                    let textInfobox = document.querySelector(".text")
+                    textInfobox.innerHTML = Texto
+                    setInterval(() => {
+                        infobox.style.opacity = "0";
+                }, 5000);
+        }
+
+        formClient.addEventListener("submit", (e)=>{
+            e.preventDefault();
+            let comprovanteText = document.querySelector("[name=comprovante]").value;
+            let arquivo = document.querySelector("[name=arquivo]").files[0];
+                if (comprovanteText != "" && arquivo){
+
+            const storageRef = ref(storage, 'documentos/'+arquivo.name);
+            const uploadTask = uploadBytesResumable(storageRef, arquivo);
+            uploadBytes(storageRef, arquivo).then((snapshot) => {
+
+            const progress = (snapshot.bytesTransferred) * 1;
+            console.log(progress)
+
+            });
+
+            uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                console.log(progress);
+
+            },
+            (error) => {
+                // Handle unsuccessful uploads
+            },
+            () => {
+                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                    const date = new Date();
+                    let day = date.getDate();
+                    let month = date.getMonth() + 1;
+                    let year = date.getFullYear();
+                    let currentDate = `${day}-${month}-${year}`;
+                    const docRef = addDoc(collection(db, "documentos"), {
+                    Nome: comprovanteText,
+                    horario: currentDate,
+                    Url: downloadURL
+                });
+                infobox("Comprovante Enviado com Sucesso!")
+                formClient.reset()
+                });
+            }
+            );
+            } else {
+                infobox("Coloque um nome e envie um arquivo!")
+
+            }
+        })
+
+        const loginBtn = document.getElementById("login");
+
+        loginBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            //Abrir poupup do google
+            signInWithPopup(auth, provider)
+            .then((result) => {
+                const credential = GoogleAuthProvider.credentialFromResult(result);
+                const token = credential.accessToken;
+                const user = result.user;
+            }).catch((error) => {
+                const errorCode = error.code;
+                const errorMessage = error.message;
+                const email = error.customData.email;
+                const credential = GoogleAuthProvider.credentialFromError(error);
+            });
+        })
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                if(user.email == "danielferreira2022motion@gmail.com") {
+                    loginBtn.style.display = "none";
+                    let list = document.querySelector(".listar-pedidos")
+                    list.style.display = "block";
+                    let logoutbtn = document.querySelector(".logout-button");
+                    logoutbtn.style.display = "initial";
+                    updateTasks();
+                    infobox("Você Logou como Administrator!")
+                } else {
+                    signOut(auth).then(() => {
+                        // Sign-out successful.
+                        const user = null;
+                        let list = document.querySelector(".listar-pedidos")
+                        list.style.display = "none";
+                        }).catch((error) => {
+                        // An error happened.
+                    })
+                    infobox("Esse email nao é de um administrator!")
+
+                }
+            } else {
+
+            }
+            });
+
+
+            //Puxar Pedidos do firesotre.
+
+            async function updateTasks() {
+            const q = query(collection(db, "documentos"), where("Nome", "!=", ""));
+            const querySnapshot = await getDocs(q);
+
+
+
+            const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const taref = [];
+            querySnapshot.forEach((doc) => {
+            taref.push(doc.data());
+            let list = document.querySelector('.container-pedidos');
+            list.innerHTML = ""
+
+            // taref
+
+            taref.forEach((value, index) => {
+                list.innerHTML+= `
+                    <div style="background-color:white; margin-bottom: 20px; padding: 20px;" class="container-single-pedido">
+                        <p>Descrição: ${value.Nome}</p>
+                        <img style"margin-top:10px; " src="${value.Url}"/>
+                    </div>
+                    <br>
+                `
+            });
+
+            });
+        });
+        }
+
+        var logout = document.querySelector(".logout-button")
+
+        logout.addEventListener('click', (e)=>{
+            signOut(auth).then(() => {
+                        // Sign-out successful.
+                        const user = null;
+                        loginBtn.style.display = "block";
+                        let list = document.querySelector(".listar-pedidos")
+                        list.style.display = "none";
+                        let logoutbtn = document.querySelector(".logout-button");
+                        logoutbtn.style.display = "none";
+                        infobox("Voce deslogou")
+                        loginBtn.style.display = "initial";
+                        }).catch((error) => {
+                        // An error happened.
+                    })
+        })
+
+
+    </script>
+
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const myParam = urlParams.get('admin');
+
+        if(myParam != null) {
+            //Eu quero entrar na area administrativa
+            const adminArea = document.querySelector('.admin');
+            adminArea.style.display = "block"
+
+
+        } else {
+            //Eu Sou usuario................................................................
+            const clienteArea = document.querySelector('.cliente');
+            clienteArea.style.display = "block"
+        }
+
+
+
+    </script>
+
+
+</body>
+</html>
